@@ -40,22 +40,19 @@ process ASSIGN_STRANDEDNESS {
     """
 }
 
-process MOTIF_ANALYSIS {
+process COUNT_CS_READS {
 
-    label 'motif_analysis'
+    label 'processing'
 
     tag { library }
 
-    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*canonical.bed"
-    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*.3pSites.bed"  
+    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*"
 
     input:
     tuple val(library), path(bed)
-    path genome_fa
-    path canon_polya_sites_bed
 
     output:
-    tuple val(library), path('*canonical.bed'), emit: motif_tuple
+    tuple val(library), path('*counts.bed'), emit: counts_cs_tuple
     path('*.3pSites.bed')
 
     script:
@@ -63,30 +60,6 @@ process MOTIF_ANALYSIS {
     # Adjust start/end position based on read strand
     awk '{if (\$6 == "+") \$2 = \$3 - 1; else if (\$6 == "-") \$3 = \$2 + 1; print}' OFS='\t' ${bed} > ${library}.3pSites.bed
 
-    # Count AAUAAA motif
-    python ${projectDir}/modules/check_AAUAAA_motif.py -i ${library}.3pSites.bed -f ${genome_fa} -o ${library}.AAUAAA.bed
-
-    # Count canonical sites
-    python ${projectDir}/modules/count_canon_sites.py -i ${library}.AAUAAA.bed -c ${canon_polya_sites_bed} -o ${library}.AAUAAA.canonical.bed
-    """
-}
-
-process FILTER_IQR {
-
-    label 'processing'
-
-    tag { library }
-
-    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*.bed"
-
-    input:
-    tuple val(library), path(bed)
-
-    output:
-    tuple val(library), path('*counts.bed'), emit: counts_cs_tuple
-
-    script:
-    """
     # Reorganize columns: chr, start, end, cs_id, score, strand, length
     # Count reads at cleavage sites, aggregate by 
     awk '
@@ -113,6 +86,29 @@ process FILTER_IQR {
             split(k, fields, "\t");
             print fields[1], fields[2], fields[3], site_id[k], count[k], fields[4], lengths[k], ids[k];
         }
-    }' OFS='\t' ${bed} | sort > ${library}.3pSites.counts.bed
+    }' OFS='\t' ${library}.3pSites.bed | sort > ${library}.3pSites.counts.bed
+    """
+}
+
+process FILTER_IQR {
+
+    label 'processing'
+    
+    tag { library }
+
+    conda = "${HOME}/miniconda3/envs/jupyter"
+
+    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*"
+
+    input:
+    tuple val(library), path(bed)
+
+    output:
+    tuple val(library), path('*.filtered.bed'), emit: filtered_cs_tuple
+    path("*.png")
+
+    script:
+    """
+    python ${projectDir}/modules/filter_iqr.py -i ${bed} -s ${library} -o ${library}.filtered.bed
     """
 }

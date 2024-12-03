@@ -14,9 +14,11 @@ log.info """\
  """
 
 // import modules
-include { ASSIGN_STRANDEDNESS } from './modules/filtering.nf'
-include { MOTIF_ANALYSIS } from './modules/filtering.nf'
-include { FILTER_IQR } from './modules/filtering.nf'
+include { ASSIGN_STRANDEDNESS } from './modules/filter_reads.nf'
+include { COUNT_CS_READS } from './modules/filter_reads.nf'
+include { FILTER_IQR } from './modules/filter_reads.nf'
+
+include { ANALYZE_MOTIFS } from './modules/analyze_motifs.nf'
 
 include { BAM_TO_BED } from './modules/bam_bed_formats.nf'
 
@@ -32,12 +34,15 @@ workflow motif_analysis {
     main:
         ASSIGN_STRANDEDNESS(input_bed, non_overlap_genes_ch)
         unique_stranded_filtered_tuple = ASSIGN_STRANDEDNESS.out.unique_stranded_filtered_tuple
-        MOTIF_ANALYSIS(unique_stranded_filtered_tuple, genome_fa_ch, polya_sites_bed_ch)
-        motif_tuple = MOTIF_ANALYSIS.out.motif_tuple
-        FILTER_IQR(motif_tuple)
-        counts_cs_tuple = FILTER_IQR.out.counts_cs_tuple
+        COUNT_CS_READS(unique_stranded_filtered_tuple)
+        counts_cs_tuple = COUNT_CS_READS.out.counts_cs_tuple
+        FILTER_IQR(counts_cs_tuple)
+        filtered_tuple = FILTER_IQR.out.filtered_cs_tuple
+        // MOTIF_ANALYSIS(filtered_tuple, genome_fa_ch)
+        // motif_tuple = MOTIF_ANALYSIS.out.motif_tuple
+
     emit:
-        counts_cs_tuple
+        filtered_tuple
 }
 
 // Main workflow
