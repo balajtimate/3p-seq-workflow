@@ -16,6 +16,10 @@ process ASSIGN_STRANDEDNESS {
 
     output:
     tuple val(library), path('*.final.bed'), emit: unique_stranded_filtered_tuple
+    // path('*.unique_mappers.bed')
+    // path('*.unique_mappers.overlap.bed')
+    // path('*.unique_mappers.overlap.stranded.bed')
+    // path('*.unique_mappers.overlap.stranded.filtered.bed')
 
     script:
     """
@@ -33,38 +37,6 @@ process ASSIGN_STRANDEDNESS {
 
     # Remove reads where length >45
     awk '\$8 <= 45 {print \$1, \$2, \$3, \$4, \$5, \$7, \$8}' OFS='\t' ${library}.unique_mappers.overlap.stranded.filtered.bed > ${library}.unique_mappers.overlap.stranded.filtered.final.bed
-    """
-}
-
-process COUNT_CS_READS {
-
-    label 'processing'
-
-    tag { library }
-
-    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*.bed"
-
-    input:
-    tuple val(library), path(bed)
-
-    output:
-    tuple val(library), path('*counts.bed'), emit: counts_cs_tuple
-
-    script:
-    """
-    # Count reads at cleavage sites, aggregate by 
-    awk '
-    {
-        key = \$1 "\t" \$2 "\t" \$3 "\t" \$6;
-        lengths[key] = lengths[key] ? lengths[key] "," \$7 : \$7;
-        ids[key] = ids[key] ? ids[key] "," \$4 : \$4;
-        count[key]++;
-    }
-    END {
-        for (k in count) {
-            print k, count[k], lengths[k], ids[k];
-        }
-    }' OFS='\t' ${bed} | sort > ${library}.3pSites.counts.bed
     """
 }
 
@@ -96,5 +68,51 @@ process MOTIF_ANALYSIS {
 
     # Count canonical sites
     python ${projectDir}/modules/count_canon_sites.py -i ${library}.AAUAAA.bed -c ${canon_polya_sites_bed} -o ${library}.AAUAAA.canonical.bed
+    """
+}
+
+process FILTER_IQR {
+
+    label 'processing'
+
+    tag { library }
+
+    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*.bed"
+
+    input:
+    tuple val(library), path(bed)
+
+    output:
+    tuple val(library), path('*counts.bed'), emit: counts_cs_tuple
+
+    script:
+    """
+    # Reorganize columns: chr, start, end, cs_id, score, strand, length
+    # Count reads at cleavage sites, aggregate by 
+    awk '
+    {
+        # Define the key for aggregation (chromosome, start, end, strand)
+        key = \$1 "\t" \$2 "\t" \$3 "\t" \$6;
+
+        # Construct the cleavage site ID
+        cleavage_site_id = \$1 ":" \$2 ":" \$3 ":" \$6;
+
+        # Aggregate lengths and IDs for each key
+        lengths[key] = lengths[key] ? lengths[key] "," \$7 : \$7;
+        ids[key] = ids[key] ? ids[key] "," \$4 : \$4;
+
+        # Store the cleavage site ID
+        site_id[key] = cleavage_site_id;
+
+        # Count occurrences of each key
+        count[key]++;
+    }
+    END {
+        for (k in count) {
+            # Extract chrom, start, end, and strand for printing
+            split(k, fields, "\t");
+            print fields[1], fields[2], fields[3], site_id[k], count[k], fields[4], lengths[k], ids[k];
+        }
+    }' OFS='\t' ${bed} | sort > ${library}.3pSites.counts.bed
     """
 }

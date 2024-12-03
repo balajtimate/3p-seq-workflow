@@ -14,9 +14,9 @@ log.info """\
  """
 
 // import modules
-include { ASSIGN_STRANDEDNESS } from './modules/motif_analysis.nf'
-include { COUNT_CS_READS } from './modules/motif_analysis.nf'
-include { MOTIF_ANALYSIS } from './modules/motif_analysis.nf'
+include { ASSIGN_STRANDEDNESS } from './modules/filtering.nf'
+include { MOTIF_ANALYSIS } from './modules/filtering.nf'
+include { FILTER_IQR } from './modules/filtering.nf'
 
 genome_fa_ch = Channel.fromPath(params.genome_fa, checkIfExists: true).collect()
 non_overlap_genes_ch = Channel.fromPath(params.non_overlap_genes, checkIfExists: true).collect()
@@ -32,10 +32,10 @@ workflow motif_analysis {
         unique_stranded_filtered_tuple = ASSIGN_STRANDEDNESS.out.unique_stranded_filtered_tuple
         MOTIF_ANALYSIS(unique_stranded_filtered_tuple, genome_fa_ch, polya_sites_bed_ch)
         motif_tuple = MOTIF_ANALYSIS.out.motif_tuple
-        // COUNT_CS_READS(unique_stranded_filtered_tuple)
-        // counts_cs_tuple = COUNT_CS_READS.out.counts_cs_tuple
+        FILTER_IQR(motif_tuple)
+        counts_cs_tuple = FILTER_IQR.out.counts_cs_tuple
     emit:
-        motif_tuple
+        counts_cs_tuple
 }
 
 // Main workflow
