@@ -18,6 +18,8 @@ include { ASSIGN_STRANDEDNESS } from './modules/filtering.nf'
 include { MOTIF_ANALYSIS } from './modules/filtering.nf'
 include { FILTER_IQR } from './modules/filtering.nf'
 
+include { BAM_TO_BED } from './modules/bam_bed_formats.nf'
+
 genome_fa_ch = Channel.fromPath(params.genome_fa, checkIfExists: true).collect()
 non_overlap_genes_ch = Channel.fromPath(params.non_overlap_genes, checkIfExists: true).collect()
 polya_sites_bed_ch = Channel.fromPath(params.polya_sites_bed, checkIfExists: true).collect()
@@ -44,6 +46,12 @@ workflow {
         input_bed_ch = Channel.fromPath(params.input_bed, checkIfExists: true).map { input_bed_path -> tuple(input_bed_path.baseName, input_bed_path) }
         input_bed_ch.each {
             motif_analysis(input_bed_ch)
+        }
+    }
+    if (params.run_mode == 'bam_to_bed') {
+        input_bam_ch = Channel.fromPath(params.input_bam, checkIfExists: true).map { input_bam_path -> tuple(input_bam_path.baseName, input_bam_path) }
+        input_bam_ch.each {
+            BAM_TO_BED(input_bam_ch)
         }
     }
 }
