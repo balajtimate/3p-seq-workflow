@@ -17,7 +17,7 @@ log.info """\
 include { ASSIGN_STRANDEDNESS } from './modules/filter_reads.nf'
 include { COUNT_CS_READS } from './modules/filter_reads.nf'
 include { FILTER_IQR } from './modules/filter_reads.nf'
-
+include { CREATE_BAM } from './modules/bam_bed_formats.nf'
 include { ANALYZE_MOTIFS } from './modules/analyze_motifs.nf'
 
 include { BAM_TO_BED } from './modules/bam_bed_formats.nf'
@@ -30,6 +30,7 @@ polya_sites_bed_ch = Channel.fromPath(params.polya_sites_bed, checkIfExists: tru
 workflow motif_analysis {
     take:
         input_bed
+        input_bam
 
     main:
         ASSIGN_STRANDEDNESS(input_bed, non_overlap_genes_ch)
@@ -38,17 +39,20 @@ workflow motif_analysis {
         counts_cs_tuple = COUNT_CS_READS.out.counts_cs_tuple
         FILTER_IQR(counts_cs_tuple)
         filtered_tuple = FILTER_IQR.out.filtered_cs_tuple
-        // MOTIF_ANALYSIS(filtered_tuple, genome_fa_ch)
-        // motif_tuple = MOTIF_ANALYSIS.out.motif_tuple
+
+
+        ANALYZE_MOTIFS(filtered_tuple, genome_fa_ch)
+        motif_tuple = ANALYZE_MOTIFS.out.motif_tuple
 
     emit:
-        filtered_tuple
+        motif_tuple
 }
 
 // Main workflow
 workflow {
     if (params.run_mode == 'motif_analysis') {
         input_bed_ch = Channel.fromPath(params.input_bed, checkIfExists: true).map { input_bed_path -> tuple(input_bed_path.baseName, input_bed_path) }
+        input_bam_ch = Channel.fromPath(params.input_bam, checkIfExists: true).map { input_bam_path -> tuple(input_bam_path.baseName, input_bam_path) }
         input_bed_ch.each {
             motif_analysis(input_bed_ch)
         }

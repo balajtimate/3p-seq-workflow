@@ -109,6 +109,6 @@ process FILTER_IQR {
 
     script:
     """
-    python ${projectDir}/modules/filter_iqr.py -i ${bed} -s ${library} -o ${library}.filtered.bed
+    python ${projectDir}/modules/filter_iqr.py -i ${bed} -s ${library} -o ${library}.iqr_removed.bed
     """
 }

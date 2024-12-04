@@ -8,40 +8,67 @@ def write_to_bed(df, out_file):
     df.to_csv(out_file, sep='\t', header=False, index=False)
 
 
-def contains_motif(sequence, motif="AAUAAAA"):
-    """Check if the given RNA sequence contains the specified motif."""
-    return motif in sequence
+def count_stretches(sequence, stretch="AAAA", window=(-5, 5)):
+    """
+    Count the number of non-overlapping occurrences of a stretch in the sequence.
+    Overlaps are counted separately.
+    """
+    count = 0
+    for i in range(len(sequence) - len(stretch) + 1):
+        if sequence[i:i + len(stretch)] == stretch:
+            count += 1
+    return count
+
+
+def contains_motif(sequence, motifs):
+    """Check for the presence of multiple motifs in the given sequence."""
+    return {motif: (1 if motif in sequence else 0) for motif in motifs}
 
 
 def process_cleavage_sites(pas_df, fasta_path):
     """
-    Add a column indicating the presence of the "AAUAAAA" motif.
+    Add columns for AAAA stretches and motif presence.
     """
     fasta_f = pysam.FastaFile(fasta_path)
-    motif_results = []
+    motif_results = {motif: [] for motif in MOTIFS}
+    stretch_results = {f"AAAA_{window[0]}:{window[1]}": [] for window in STRETCH_WINDOWS}
 
     for _, row in pas_df.iterrows():
         chrom = row[0]               # Chromosome
-        start = int(row[1])          # Cleavage site position
+        cleavage_site = int(row[1])  # Cleavage site position
         strand = row[5]              # Strand
 
-        # Define sequence boundaries
-        if strand == '-':
-            sequence_start = start + 10
-            sequence_end = start + 35
-        else:
-            sequence_start = start - 35
-            sequence_end = start - 10
+        # Calculate stretch windows
+        for window_name, window in zip(stretch_results.keys(), STRETCH_WINDOWS):
+            sequence_start = cleavage_site + window[0]
+            sequence_end = cleavage_site + window[1]
+            dna_sequence = fasta_f.fetch(reference=chrom, start=sequence_start, end=sequence_end + 1)
+            rna_sequence = change_dna_to_rna(dna_sequence, strand)
+            stretch_results[window_name].append(count_stretches(rna_sequence, stretch="AAAA"))
 
-        # Fetch the DNA sequence
+        # Define motif detection window
+        if strand == '-':
+            sequence_start = cleavage_site + 10
+            sequence_end = cleavage_site + 35
+        else:
+            sequence_start = cleavage_site - 35
+            sequence_end = cleavage_site - 10
+
+        # Fetch DNA and convert to RNA
         dna_sequence = fasta_f.fetch(reference=chrom, start=sequence_start, end=sequence_end + 1)
         rna_sequence = change_dna_to_rna(dna_sequence, strand)
 
-        # Check for the "AAUAAAA" motif
-        motif_results.append(1 if contains_motif(rna_sequence) else 0)
+        # Check for motifs
+        motif_presence = contains_motif(rna_sequence, MOTIFS)
+        for motif, presence in motif_presence.items():
+            motif_results[motif].append(presence)
 
-    # Add the motif presence column
-    pas_df["AAUAAAA"] = motif_results
+    # Add results to the DataFrame
+    for column, values in stretch_results.items():
+        pas_df[column] = values
+
+    for motif, values in motif_results.items():
+        pas_df[motif] = values
 
     return pas_df
 
@@ -61,7 +88,7 @@ def change_dna_to_rna(sequence, strand):
 
 def get_args():
     parser = argparse.ArgumentParser(
-        description='Add an "AAUAAAA" motif column to a cleavage site BED file'
+        description='Add motif and AAAA stretch columns to a cleavage site BED file'
     )
     parser.add_argument(
         '-i', '--input-bed', required=True, help='Input PAS BED file'
@@ -88,6 +115,14 @@ def run_process():
     write_to_bed(final_df, output_bed)
     print('Done!')
 
+
+# Motif list and stretch windows
+MOTIFS = [
+    "AATAAA", "ATTAAA", "TATAAA", "AGTAAA", "AATGAA",
+    "CATAAA", "AATACA", "AATATA", "GATAAA", "ACTAAA",
+    "AATAGA", "AAGAAA"
+]
+STRETCH_WINDOWS = [(-5, 5), (-10, 10), (-20, 20)]
 
 if __name__ == '__main__':
     run_process()
