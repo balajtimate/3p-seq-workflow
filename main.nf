@@ -38,8 +38,11 @@ workflow motif_analysis {
         COUNT_CS_READS(unique_stranded_filtered_tuple)
         counts_cs_tuple = COUNT_CS_READS.out.counts_cs_tuple
         FILTER_IQR(counts_cs_tuple)
-        filtered_tuple = FILTER_IQR.out.filtered_cs_tuple
+        iqr_tuple = FILTER_IQR.out.filtered_cs_tuple
 
+        bed_bam_pairs_ch = iqr_tuple.join(input_bam)
+        CREATE_BAM(bed_bam_pairs_ch)
+        filtered_tuple = CREATE_BAM.out.bed
 
         ANALYZE_MOTIFS(filtered_tuple, genome_fa_ch)
         motif_tuple = ANALYZE_MOTIFS.out.motif_tuple
@@ -54,7 +57,7 @@ workflow {
         input_bed_ch = Channel.fromPath(params.input_bed, checkIfExists: true).map { input_bed_path -> tuple(input_bed_path.baseName, input_bed_path) }
         input_bam_ch = Channel.fromPath(params.input_bam, checkIfExists: true).map { input_bam_path -> tuple(input_bam_path.baseName, input_bam_path) }
         input_bed_ch.each {
-            motif_analysis(input_bed_ch)
+            motif_analysis(input_bed_ch, input_bam_ch)
         }
     }
     if (params.run_mode == 'bam_to_bed') {

@@ -29,14 +29,14 @@ process ASSIGN_STRANDEDNESS {
     # Intersect with non-overlapping genes
     bedtools intersect -a ${library}.unique_mappers.bed -b ${non_overlapping_genes_bed} -wa -wb > ${library}.unique_mappers.overlap.bed
 
-    # Check for gene strandedness
-    awk '{print \$1, \$2, \$3, \$4, \$5, \$6, \$13, \$7}' OFS='\t' ${library}.unique_mappers.overlap.bed > ${library}.unique_mappers.overlap.stranded.bed
+    # Check for gene strandedness and include gene_id
+    awk '{print \$1, \$2, \$3, \$4, \$5, \$6, \$13, \$7, \$14}' OFS='\t' ${library}.unique_mappers.overlap.bed > ${library}.unique_mappers.overlap.stranded.bed
 
-    # Filter for stranded reads with same strand as gene
+    # Filter for stranded reads with same strand as gene and include gene_id
     awk '\$6 == \$7' OFS='\t' ${library}.unique_mappers.overlap.stranded.bed > ${library}.unique_mappers.overlap.stranded.filtered.bed
 
-    # Remove reads where length >45
-    awk '\$8 <= 45 {print \$1, \$2, \$3, \$4, \$5, \$7, \$8}' OFS='\t' ${library}.unique_mappers.overlap.stranded.filtered.bed > ${library}.unique_mappers.overlap.stranded.filtered.final.bed
+    # Remove reads where length >45, keeping gene_id
+    awk '\$8 <= 45 {print \$1, \$2, \$3, \$4, \$5, \$7, \$8, \$9}' OFS='\t' ${library}.unique_mappers.overlap.stranded.filtered.bed > ${library}.unique_mappers.overlap.stranded.filtered.final.bed
     """
 }
 
@@ -104,7 +104,7 @@ process FILTER_IQR {
     tuple val(library), path(bed)
 
     output:
-    tuple val(library), path('*.filtered.bed'), emit: filtered_cs_tuple
+    tuple val(library), path('*.iqr_removed.bed'), emit: filtered_cs_tuple
     path("*.png")
 
     script:

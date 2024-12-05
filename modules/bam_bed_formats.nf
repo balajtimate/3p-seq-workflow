@@ -11,11 +11,11 @@ process CREATE_BAM {
     publishDir "${params.out_dir}/${library}_results/", mode: 'copy', pattern: '*'
 
     input:
-    tuple library, bed_file, bam_file
+    tuple val(library), path(bed_file), path(bam_file)
 
     output:
-    tuple library, path('*.bam'), emit: bam
-    tuple library, path('*.bed'), emit: bed
+    tuple val(library), path('*.bam'), emit: bam
+    tuple val(library), path('*.bed'), emit: bed
 
     script:
     """
