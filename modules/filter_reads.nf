@@ -57,22 +57,23 @@ process COUNT_CS_READS {
 
     script:
     """
-    # Adjust start/end position based on read strands
+    # Adjust start/end position based on read strand
     awk '{if (\$6 == "+") \$2 = \$3 - 1; else if (\$6 == "-") \$3 = \$2 + 1; print}' OFS='\t' ${bed} > ${library}.3pSites.bed
 
-    # Reorganize columns: chr, start, end, cs_id, score, strand, length, gene_id
-    # Count reads at cleavage sites, aggregate by gene_id
+    # Reorganize columns: chr, start, end, cs_id, score, strand, length
+    # Count reads at cleavage sites, aggregate by 
     awk '
     {
-        # Define the key for aggregation (chromosome, start, end, strand, gene_id)
-        key = \$1 "\t" \$2 "\t" \$3 "\t" \$6 "\t" \$8;
+        # Define the key for aggregation (chromosome, start, end, strand)
+        key = \$1 "\t" \$2 "\t" \$3 "\t" \$6;
 
         # Construct the cleavage site ID
         cleavage_site_id = \$1 ":" \$2 ":" \$3 ":" \$6;
 
-        # Aggregate lengths and IDs for each key
+        # Aggregate lengths, IDs, and gene IDs for each key
         lengths[key] = lengths[key] ? lengths[key] "," \$7 : \$7;
         ids[key] = ids[key] ? ids[key] "," \$4 : \$4;
+        gene_ids[key] = gene_ids[key] ? gene_ids[key] "," \$8 : \$8;
 
         # Store the cleavage site ID
         site_id[key] = cleavage_site_id;
@@ -82,9 +83,20 @@ process COUNT_CS_READS {
     }
     END {
         for (k in count) {
-            # Extract chrom, start, end, strand, and gene_id for printing
+            # Extract chrom, start, end, and strand for printing
             split(k, fields, "\t");
-            print fields[1], fields[2], fields[3], site_id[k], count[k], fields[4], lengths[k], ids[k], fields[5];
+
+            # Deduplicate gene IDs
+            n = split(gene_ids[k], gene_id_array, ",");
+            delete unique_genes;
+            for (i = 1; i <= n; i++) unique_genes[gene_id_array[i]] = 1;
+
+            gene_ids_unique = "";
+            for (gene in unique_genes) {
+                gene_ids_unique = gene_ids_unique ? gene_ids_unique "," gene : gene;
+            }
+
+            print fields[1], fields[2], fields[3], site_id[k], count[k], fields[4], lengths[k], ids[k], gene_ids_unique;
         }
     }' OFS='\t' ${library}.3pSites.bed | sort > ${library}.3pSites.counts.bed
     """

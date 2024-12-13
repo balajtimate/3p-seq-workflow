@@ -19,6 +19,8 @@ include { COUNT_CS_READS } from './modules/filter_reads.nf'
 include { FILTER_IQR } from './modules/filter_reads.nf'
 include { CREATE_BAM } from './modules/bam_bed_formats.nf'
 include { ANALYZE_MOTIFS } from './modules/analyze_motifs.nf'
+
+include { CREATE_BEDGRAPH } from './modules/bam_bed_formats.nf'
 include { CREATE_BIGWIG } from './modules/bam_bed_formats.nf'
 
 include { BAM_TO_BED } from './modules/bam_bed_formats.nf'
@@ -49,14 +51,15 @@ workflow motif_analysis {
         ANALYZE_MOTIFS(filtered_tuple, genome_fa_ch)
         motif_tuple = ANALYZE_MOTIFS.out.motif_tuple
 
-        CREATE_BIGWIG(motif_tuple, chrom_size_ch)
-        pos_bigwig = CREATE_BIGWIG.out.pos_bigwig
-        neg_bigwig = CREATE_BIGWIG.out.neg_bigwig
+        CREATE_BEDGRAPH(motif_tuple)
+        bedgraph_tuple = CREATE_BEDGRAPH.out.bedgraph
+
+        CREATE_BIGWIG(bedgraph_tuple, chrom_size_ch)
+        bigwig = CREATE_BIGWIG.out.bigwig
 
     emit:
         motif_tuple
-        pos_bigwig
-        neg_bigwig
+        bigwig
 }
 
 // Main workflow

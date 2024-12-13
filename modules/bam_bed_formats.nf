@@ -58,24 +58,19 @@ process BAM_TO_BED {
     """
 }
 
-process CREATE_BIGWIG {
+process CREATE_BEDGRAPH {
 
     label 'processing'
     
     tag { library }
 
-    publishDir "${params.out_dir}/${library}_results/", mode: 'copy', pattern: '*.bw'
     publishDir "${params.out_dir}/${library}_results/", mode: 'copy', pattern: '*.bedgraph'
 
     input:
     tuple val(library), path(bed_file)
-    path(chrom_sizes)
 
     output:
-    tuple val(library), path('*.positive.bw'), emit: pos_bigwig
-    tuple val(library), path('*.negative.bw'), emit: neg_bigwig
-    tuple val(library), path('*.positive.sorted.bedgraph'), emit: pos_bedgraph
-    tuple val(library), path('*.negative.sorted.bedgraph'), emit: neg_bedgraph
+    tuple val(library), path('*.positive.sorted.bedgraph'), path('*.negative.sorted.bedgraph'), emit: bedgraph
 
     script:
     """
@@ -86,9 +81,28 @@ process CREATE_BIGWIG {
     # Sort the BedGraph files
     sort -k1,1 -k2,2n ${library}.positive.bedgraph > ${library}.positive.sorted.bedgraph
     sort -k1,1 -k2,2n ${library}.negative.bedgraph > ${library}.negative.sorted.bedgraph
+    """
+}
 
+process CREATE_BIGWIG {
+
+    label 'processing'
+    
+    tag { library }
+
+    publishDir "${params.out_dir}/${library}_results/", mode: 'copy', pattern: '*.bw'
+
+    input:
+    tuple val(library), path(positive_bedgraph), path(negative_bedgraph)
+    path(chrom_sizes)
+
+    output:
+    tuple val(library), path('*.positive.bw'), path('*.negative.bw'), emit: bigwig
+
+    script:
+    """
     # Convert BedGraph to BigWig
-    bedGraphToBigWig ${library}.positive.sorted.bedgraph ${chrom_sizes} ${library}.positive.bw
-    bedGraphToBigWig ${library}.negative.sorted.bedgraph ${chrom_sizes} ${library}.negative.bw
+    bedGraphToBigWig ${positive_bedgraph} ${chrom_sizes} ${library}.positive.bw
+    bedGraphToBigWig ${negative_bedgraph} ${chrom_sizes} ${library}.negative.bw
     """
 }
