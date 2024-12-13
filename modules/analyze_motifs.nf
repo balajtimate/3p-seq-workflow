@@ -8,7 +8,7 @@ process ANALYZE_MOTIFS {
 
     tag { library }
 
-    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*.motifs.bed"
+    publishDir "${params.out_dir}/${library}_results", mode: 'copy', pattern: "*.bed"
 
     input:
     tuple val(library), path(bed)
@@ -16,10 +16,14 @@ process ANALYZE_MOTIFS {
 
     output:
     tuple val(library), path('*.motifs.bed'), emit: motif_tuple
+    tuple val(library), path('*.aaaa.bed')
 
     script:
     """
-    # Count AAUAAA motif
-    python ${projectDir}/modules/check_motifs.py -i ${bed} -f ${genome_fa} -o ${library}.motifs.bed
+    # Analyze AAAA stretches
+    python ${projectDir}/modules/check_AAAA.py -i ${bed} -f ${genome_fa} -o ${library}.aaaa.bed
+
+    # Use the output of AAAA stretch analysis to analyze motifs
+    python ${projectDir}/modules/check_motifs.py -i ${library}.aaaa.bed -f ${genome_fa} -o ${library}.motifs.bed
     """
 }

@@ -14,7 +14,7 @@ def calculate_iqr(read_lengths):
 def process_bed_file(filename):
     """Reads a BED file, calculates IQR, and adds it as a column."""
     df = pd.read_csv(filename, sep='\t', header=None)
-    df.columns = ['chr', 'start', 'end', 'id', 'count', 'strand', 'read_lengths', 'read_ids']
+    df.columns = ['chr', 'start', 'end', 'id', 'count', 'strand', 'read_lengths', 'read_ids', 'gene_id']
 
     # Process read lengths to calculate IQR
     df['read_lengths'] = df['read_lengths'].str.split(',')
@@ -91,7 +91,9 @@ def main(input_bed, output_bed, sample_name):
     df = bin_and_calculate_rolling_10th_percentile(df)
     print(df.head())  
     # Step 3: Filter entries below the rolling window line
-    filtered_df = filter_below_rolling_window(df)
+    # No filtering now
+    # filtered_df = filter_below_rolling_window(df)
+    filtered_df = df
     print(filtered_df.head())
     # Step 4: Save filtered BED file
     filtered_df = filtered_df.drop(columns=['smoothed_10th_percentile', 'count_bins', 'read_lengths'])

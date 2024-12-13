@@ -19,12 +19,14 @@ include { COUNT_CS_READS } from './modules/filter_reads.nf'
 include { FILTER_IQR } from './modules/filter_reads.nf'
 include { CREATE_BAM } from './modules/bam_bed_formats.nf'
 include { ANALYZE_MOTIFS } from './modules/analyze_motifs.nf'
+include { CREATE_BIGWIG } from './modules/bam_bed_formats.nf'
 
 include { BAM_TO_BED } from './modules/bam_bed_formats.nf'
 
 genome_fa_ch = Channel.fromPath(params.genome_fa, checkIfExists: true).collect()
 non_overlap_genes_ch = Channel.fromPath(params.non_overlap_genes, checkIfExists: true).collect()
 polya_sites_bed_ch = Channel.fromPath(params.polya_sites_bed, checkIfExists: true).collect()
+chrom_size_ch = Channel.fromPath(params.chrom_size, checkIfExists: true).collect()
 
 // Subworkflow for preprocessing steps
 workflow motif_analysis {
@@ -47,8 +49,14 @@ workflow motif_analysis {
         ANALYZE_MOTIFS(filtered_tuple, genome_fa_ch)
         motif_tuple = ANALYZE_MOTIFS.out.motif_tuple
 
+        CREATE_BIGWIG(motif_tuple, chrom_size_ch)
+        pos_bigwig = CREATE_BIGWIG.out.pos_bigwig
+        neg_bigwig = CREATE_BIGWIG.out.neg_bigwig
+
     emit:
         motif_tuple
+        pos_bigwig
+        neg_bigwig
 }
 
 // Main workflow
