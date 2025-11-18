@@ -67,9 +67,27 @@ workflow {
     if (params.run_mode == 'motif_analysis') {
         input_bed_ch = Channel.fromPath(params.input_bed, checkIfExists: true).map { input_bed_path -> tuple(input_bed_path.baseName, input_bed_path) }
         input_bam_ch = Channel.fromPath(params.input_bam, checkIfExists: true).map { input_bam_path -> tuple(input_bam_path.baseName, input_bam_path) }
+
+        // Create a channel to hold all motif tuples
+        all_motif_tuples_ch = Channel.empty()
+
         input_bed_ch.each {
-            motif_analysis(input_bed_ch, input_bam_ch)
+            // Execute motif_analysis for each input
+            def result = motif_analysis(input_bed_ch, input_bam_ch)
+            
+            // Collect motif_tuple outputs
+            all_motif_tuples_ch = result.motif_tuple.flatten().collect()
         }
+
+        // Extract only the paths (every second element)
+        motif_paths_ch = all_motif_tuples_ch.map { list ->
+            def paths = []
+            list.eachWithIndex { item, idx -> if (idx % 2 == 1) paths.add(item) }
+            return paths
+        }.flatten()
+
+        // Optional: View extracted paths
+        motif_paths_ch.view()
     }
     if (params.run_mode == 'bam_to_bed') {
         input_bam_ch = Channel.fromPath(params.input_bam, checkIfExists: true).map { input_bam_path -> tuple(input_bam_path.baseName, input_bam_path) }

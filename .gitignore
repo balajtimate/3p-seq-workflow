@@ -166,3 +166,5 @@ work/
 data/
 results/
 plots/
+modules/atlas_motif_AAAA_analysis
+*.ipynb

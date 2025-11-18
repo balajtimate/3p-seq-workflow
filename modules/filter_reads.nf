@@ -8,7 +8,7 @@ process ASSIGN_STRANDEDNESS {
     
     tag { library }
 
-    publishDir "${params.out_dir}/${library}_results/", mode: 'copy', pattern: '*'
+    // publishDir "${params.out_dir}/${library}_results/", mode: 'copy', pattern: '*'
 
     input:
     tuple val(library), path(bed)
@@ -124,3 +124,24 @@ process FILTER_IQR {
     python ${projectDir}/modules/filter_iqr.py -i ${bed} -s ${library} -o ${library}.iqr.bed
     """
 }
+
+// process FILTER_GENES {
+
+//     input:
+//     tuple val(sample_id), path(motif_tuples) from motif_tuples_ch
+//     path non_overlap_genes_bed from non_overlap_genes_ch
+
+//     output:
+//     path "filtered_genes.bed" into filtered_genes_bed_ch
+
+//     script:
+//     """
+//     # Extract unique gene IDs from the motif_tuple files
+//     awk 'NR>1 {print $7}' ${motif_tuples} | sort | uniq > gene_ids.txt
+
+//     # Filter non-overlapping genes BED file based on these gene IDs
+//     awk 'NR==FNR {genes[$1]; next} $4 in genes {print $1, $2, $3, $4";"substr($0, index($0,$8))}' \
+//         gene_ids.txt ${non_overlap_genes_bed} > filtered_genes.bed
+
+//     """
+// }
